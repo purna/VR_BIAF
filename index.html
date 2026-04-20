@@ -89,6 +89,8 @@
   </style>
 </head>
 <body>
+  <video id="video-player" loop="false" crossorigin="anonymous" style="display:none"></video>
+  
   <div id="loading">
     Loading...
     <div id="progress-bar"><div id="progress-fill"></div></div>
@@ -120,10 +122,6 @@
   <div id="hint">Click a video button to start playing</div>
 
   <a-scene vr-mode-ui="enabled: true">
-    <a-assets>
-      <video id="video-player" loop="false" crossorigin="anonymous"></video>
-    </a-assets>
-
     <a-entity id="video-screen" 
               geometry="primitive: plane; width: 16; height: 9" 
               material="shader: flat; src: #video-player"
