@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Cities of Ladies - VR Video Player</title>
+  <meta name="description" content="VR Video Player for Cities of Ladies">
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://unpkg.com/aframe-event-set-component@5.0.0/dist/aframe-event-set-component.min.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; }
+    #video-menu {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 999;
+      background: rgba(0,0,0,0.8);
+      padding: 15px;
+      border-radius: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+      transition: opacity 0.3s;
+    }
+    #video-menu.hidden { opacity: 0; pointer-events: none; }
+    #video-menu h3 { margin: 0 0 5px 0; cursor: pointer; padding: 8px; border-radius: 5px; font-size: 16px; }
+    #video-menu h3:hover { background: rgba(255,255,255,0.1); }
+    #video-menu h3.active { background: #e91e63; }
+    .folder-section { display: none; margin-left: 10px; border-left: 2px solid #e91e63; padding-left: 10px; margin-bottom: 10px; }
+    .folder-section.active { display: block; }
+    #video-menu button {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      margin: 3px 0;
+      background: #444;
+      border: none;
+      color: white;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 13px;
+      text-align: left;
+    }
+    #video-menu button:hover { background: #666; }
+    #loading {
+      position: fixed;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-family: Arial;
+      font-size: 24px;
+      z-index: 1000;
+    }
+    #hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-family: Arial;
+      font-size: 16px;
+      z-index: 998;
+      background: rgba(0,0,0,0.5);
+      padding: 10px 20px;
+      border-radius: 5px;
+      transition: opacity 0.5s;
+    }
+    #hint.hidden { opacity: 0; }
+  </style>
+</head>
+<body>
+  <div id="loading">Loading...</div>
+  
+  <div id="video-menu">
+    <h3 onclick="showFolder(0)" id="folder-0" class="active">WE</h3>
+    <div id="section-0" class="folder-section active">
+      <button onclick="playVideo(0)">01 - 01 Cities of Ladies (WE)</button>
+      <button onclick="playVideo(1)">02 - 02 Cities of Ladies (WE)</button>
+
+    </div>
+    
+    <h3 onclick="showFolder(1)" id="folder-1">YOU</h3>
+    <div id="section-1" class="folder-section">
+      <button onclick="playVideo(2)">01 - 01 Cities of Ladies (YOU)</button>
+      <button onclick="playVideo(3)">02 - 02 Cities of Ladies (YOU)</button>
+    </div>
+    
+    <h3 onclick="showFolder(2)" id="folder-2">I</h3>
+    <div id="section-2" class="folder-section">
+      <button onclick="playVideo(4)">01 - 01 Cities of Ladies (I)</button>
+      <button onclick="playVideo(5)">02 - 02 Cities of Ladies (I)</button>
+    </div>
+    
+    <button onclick="stopVideo()" style="background: #555; margin-top: 10px;">■ STOP</button>
+  </div>
+
+  <div id="hint">Press ESC or click anywhere to show menu</div>
+
+  <a-scene vr-mode-ui="enabled: true">
+    <a-assets>
+      <video id="video-player" loop="false" crossorigin="anonymous"></video>
+    </a-assets>
+
+    <a-entity id="video-screen" 
+              geometry="primitive: plane; width: 16; height: 9" 
+              material="shader: flat; src: #video-player"
+              position="0 1.6 -3"
+              scale="-1 1 1"
+              rotation="0 0 0">
+    </a-entity>
+
+    <a-entity id="sphere-screen"
+              geometry="primitive: sphere; radius: 30; segmentsWidth: 64; segmentsHeight: 64"
+              material="shader: flat; src: #video-player; side: back; transparent: true; opacity: 1"
+              scale="-1 1 1"
+              visible="false">
+    </a-entity>
+
+    <a-camera>
+      <a-cursor color="white"></a-cursor>
+    </a-camera>
+
+    <a-entity light="type: ambient; color: #FFF"></a-entity>
+  </a-scene>
+
+  <script>
+    const videos = [
+      { src: "01 Cities of Ladies (WE)/01 CITY OF LADIES 2 (WE).mp4", is360: true },
+      { src: "01 Cities of Ladies (WE)/02 CITY OF LADIES 2 (WE).mp4", is360: true },
+      { src: "02 Cities of Ladies (YOU)/01 CITY OF LADIES 2 (YOU).mp4", is360: true },
+      { src: "02 Cities of Ladies (YOU)/02 CITY OF LADIES 2 (YOU).mp4", is360: true },
+      { src: "03 Cities of Ladies (I)/01 CITIES OF LADIES 3 (I).mp4", is360: true },
+      { src: "03 Cities of Ladies (I)/02 CITIES OF LADIES 3 (I).mp4", is360: true } 
+        ];
+
+    let currentVideo = null;
+    let isPlaying = false;
+    const videoEl = document.getElementById("video-player");
+    const screen = document.getElementById("video-screen");
+    const sphere = document.getElementById("sphere-screen");
+    const menu = document.getElementById("video-menu");
+    const hint = document.getElementById("hint");
+
+    function showFolder(index) {
+      for (let i = 0; i < 3; i++) {
+        document.getElementById("folder-" + i).classList.remove("active");
+        document.getElementById("section-" + i).classList.remove("active");
+      }
+      document.getElementById("folder-" + index).classList.add("active");
+      document.getElementById("section-" + index).classList.add("active");
+    }
+
+    function showMenu() {
+      menu.classList.remove("hidden");
+      hint.classList.add("hidden");
+    }
+
+    function hideMenu() {
+      menu.classList.add("hidden");
+    }
+
+    function playVideo(index) {
+      const videoData = videos[index];
+      const videoSrc = videoData.src;
+      
+      document.getElementById("loading").style.display = "block";
+      
+      videoEl.src = videoSrc;
+      currentVideo = index;
+      isPlaying = true;
+
+      if (videoData.is360) {
+        screen.setAttribute("visible", "false");
+        sphere.setAttribute("visible", "true");
+      } else {
+        screen.setAttribute("visible", "true");
+        sphere.setAttribute("visible", "false");
+      }
+
+      videoEl.load();
+      videoEl.play().then(() => {
+        document.getElementById("loading").style.display = "none";
+        hideMenu();
+        hint.classList.remove("hidden");
+        setTimeout(() => hint.classList.add("hidden"), 3000);
+      }).catch(err => {
+        console.error("Play error:", err);
+        document.getElementById("loading").style.display = "none";
+      });
+    }
+
+    function stopVideo() {
+      videoEl.pause();
+      videoEl.currentTime = 0;
+      isPlaying = false;
+      showMenu();
+      hint.classList.add("hidden");
+    }
+
+    function showMenuTemporarily() {
+      if (isPlaying) {
+        showMenu();
+        setTimeout(() => {
+          if (isPlaying) hideMenu();
+        }, 5000);
+      }
+    }
+
+    videoEl.addEventListener("ended", () => {
+      isPlaying = false;
+      showMenu();
+      hint.classList.add("hidden");
+    });
+
+    videoEl.addEventListener("loadeddata", () => {
+      document.getElementById("loading").style.display = "none";
+    });
+
+    document.addEventListener("click", (e) => {
+      if (e.target.tagName !== "BUTTON" && !e.target.tagName.startsWith("H")) {
+        showMenuTemporarily();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        showMenu();
+      }
+    });
+
+    document.querySelector("a-scene").addEventListener("loaded", () => {
+      playVideo(0);
+    });
+  </script>
+</body>
+</html>
