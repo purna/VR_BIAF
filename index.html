@@ -8,7 +8,7 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/VR_BIAF/apple-touch-icon.png">
   <link rel="icon" type="image/png" sizes="32x32" href="/VR_BIAF/favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="/VR_BIAF/favicon-16x16.png">
-  <link rel="manifest" href="/site.webmanifest">
+  <link rel="manifest" href="/VR_BIAF/site.webmanifest">
 
 
   <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
@@ -55,6 +55,21 @@
       font-family: Arial;
       font-size: 24px;
       z-index: 1000;
+      text-align: center;
+    }
+    #progress-bar {
+      width: 200px;
+      height: 6px;
+      background: #333;
+      border-radius: 3px;
+      margin: 15px auto 0;
+      overflow: hidden;
+    }
+    #progress-fill {
+      height: 100%;
+      background: #e91e63;
+      width: 0%;
+      transition: width 0.2s;
     }
     #hint {
       position: fixed;
@@ -74,7 +89,10 @@
   </style>
 </head>
 <body>
-  <div id="loading">Loading...</div>
+  <div id="loading">
+    Loading...
+    <div id="progress-bar"><div id="progress-fill"></div></div>
+  </div>
   
   <div id="video-menu">
     <h3 onclick="showFolder(0)" id="folder-0" class="active">WE</h3>
@@ -99,7 +117,7 @@
     <button onclick="stopVideo()" style="background: #555; margin-top: 10px;">■ STOP</button>
   </div>
 
-  <div id="hint">Press ESC or click anywhere to show menu</div>
+  <div id="hint">Click a video button to start playing</div>
 
   <a-scene vr-mode-ui="enabled: true">
     <a-assets>
@@ -168,8 +186,9 @@
       const videoData = videos[index];
       const videoSrc = videoData.src;
       
-      document.getElementById("loading").style.display = "block";
-      
+document.getElementById("loading").style.display = "block";
+      document.getElementById("progress-fill").style.width = "0%";
+
       videoEl.src = videoSrc;
       currentVideo = index;
       isPlaying = true;
@@ -221,6 +240,26 @@
       document.getElementById("loading").style.display = "none";
     });
 
+    videoEl.addEventListener("progress", () => {
+      if (videoEl.buffered.length > 0) {
+        const bufferedEnd = videoEl.buffered.end(videoEl.buffered.length - 1);
+        const duration = videoEl.duration;
+        if (duration > 0) {
+          const percent = (bufferedEnd / duration) * 100;
+          document.getElementById("progress-fill").style.width = percent + "%";
+        }
+      }
+    });
+
+    videoEl.addEventListener("waiting", () => {
+      document.getElementById("loading").style.display = "block";
+      document.getElementById("progress-fill").style.width = "0%";
+    });
+
+    videoEl.addEventListener("canplay", () => {
+      document.getElementById("loading").style.display = "none";
+    });
+
     document.addEventListener("click", (e) => {
       if (e.target.tagName !== "BUTTON" && !e.target.tagName.startsWith("H")) {
         showMenuTemporarily();
@@ -234,7 +273,7 @@
     });
 
     document.querySelector("a-scene").addEventListener("loaded", () => {
-      playVideo(0);
+      document.getElementById("loading").style.display = "none";
     });
   </script>
 </body>
