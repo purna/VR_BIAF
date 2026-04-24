@@ -10,7 +10,6 @@
    <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
    <link rel="manifest" href="site.webmanifest">
 
-
   <script src="lib/aframe.min.js"></script>
   <link rel="stylesheet" href="lib/fonts.css">
   <script src="lib/aframe-event-set-component.min.js"></script>
@@ -102,7 +101,6 @@
     <div id="section-0" class="folder-section active">
       <button onclick="playVideo(0)">01 - 01 Cities of Ladies (WE)</button>
       <button onclick="playVideo(1)">02 - 02 Cities of Ladies (WE)</button>
-
     </div>
     
     <h3 onclick="showFolder(1)" id="folder-1">YOU</h3>
@@ -152,8 +150,8 @@
       { src: "02 Cities of Ladies (YOU)/01 CITY OF LADIES 2 (YOU).mp4", is360: true },
       { src: "02 Cities of Ladies (YOU)/02 CITY OF LADIES 2 (YOU).mp4", is360: true },
       { src: "03 Cities of Ladies (I)/01 CITIES OF LADIES 3 (I).mp4", is360: true },
-      { src: "03 Cities of Ladies (I)/02 CITIES OF LADIES 3 (I).mp4", is360: true } 
-        ];
+      { src: "03 Cities of Ladies (I)/02 CITIES OF LADIES 3 (I).mp4", is360: true }
+    ];
 
     let currentVideo = null;
     let isPlaying = false;
@@ -185,7 +183,7 @@
       const videoData = videos[index];
       const videoSrc = videoData.src;
       
-document.getElementById("loading").style.display = "block";
+      document.getElementById("loading").style.display = "block";
       document.getElementById("progress-fill").style.width = "0%";
 
       videoEl.src = videoSrc;
@@ -221,9 +219,10 @@ document.getElementById("loading").style.display = "block";
     }
 
     function showMenuTemporarily() {
+      showMenu();
       if (isPlaying) {
-        showMenu();
-        setTimeout(() => {
+        clearTimeout(window._menuHideTimer);
+        window._menuHideTimer = setTimeout(() => {
           if (isPlaying) hideMenu();
         }, 5000);
       }
@@ -259,7 +258,7 @@ document.getElementById("loading").style.display = "block";
       document.getElementById("loading").style.display = "none";
     });
 
-    // Track mouse/touch movement to distinguish clicks from drags
+    // ── MOUSE / TOUCH: distinguish clicks from drags ──────────────────────────
     let pointerDownPos = { x: 0, y: 0 };
     let isDragging = false;
     let isPointerDown = false;
@@ -294,39 +293,50 @@ document.getElementById("loading").style.display = "block";
 
     document.addEventListener("mouseup", (e) => {
       isPointerDown = false;
-      if (!isDragging && e.button === 0) { // Left click only, not dragging
+      if (!isDragging && e.button === 0) {
         showMenuTemporarily();
       }
     });
 
-    document.addEventListener("touchend", (e) => {
+    document.addEventListener("touchend", () => {
       isPointerDown = false;
       if (!isDragging) {
         showMenuTemporarily();
       }
     });
 
-    // Keyboard shortcuts: Escape, M key
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        showMenu();
-      } else if (e.key.toLowerCase() === "m") {
-        showMenuTemporarily();
-      }
+    // ── KEYBOARD: ANY key shows the menu ─────────────────────────────────────
+    document.addEventListener("keydown", () => {
+      showMenuTemporarily();
     });
 
-    // VR Controller buttons (Quest/VR controllers)
+    // ── VR CONTROLLERS: A/B (right hand) + X/Y (left hand) ───────────────────
+    // Buttons we care about on Quest / generic VR controllers
+    const VR_BUTTONS = [
+      'abuttondown',   // A – right controller
+      'bbuttondown',   // B – right controller
+      'xbuttondown',   // X – left  controller
+      'ybuttondown',   // Y – left  controller
+      'triggerdown',   // trigger (either hand)
+      'gripdown',      // grip    (either hand)
+      'menudown'       // menu button
+    ];
+
+    function attachVRListeners(controllerEl) {
+      VR_BUTTONS.forEach(event => {
+        controllerEl.addEventListener(event, () => showMenuTemporarily());
+      });
+    }
+
+    // Attach to controllers as they connect
     document.querySelector("a-scene").addEventListener("controllerconnected", (e) => {
-      const controller = e.detail.component.el;
-      controller.addEventListener('triggerdown', () => showMenuTemporarily());
-      controller.addEventListener('gripdown', () => showMenuTemporarily());
-      // For Touch controllers: abutton and bbutton
-      controller.addEventListener('abuttondown', () => showMenuTemporarily());
-      controller.addEventListener('bbuttondown', () => showMenuTemporarily());
+      attachVRListeners(e.detail.component.el);
     });
 
+    // Also scan for any controllers already present (belt-and-braces)
     document.querySelector("a-scene").addEventListener("loaded", () => {
       document.getElementById("loading").style.display = "none";
+      document.querySelectorAll("[tracked-controls], [oculus-touch-controls], [hand-controls]").forEach(attachVRListeners);
     });
   </script>
 </body>
