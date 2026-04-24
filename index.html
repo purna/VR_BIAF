@@ -2,13 +2,13 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Cities of Ladies - VR Video Player</title>
-  <meta name="description" content="VR Video Player for Cities of Ladies">
+   <title>Cities of Ladies</title>
+   <meta name="description" content="VR Video Player for Cities of Ladies">
 
-  <link rel="apple-touch-icon" sizes="180x180" href="/VR_BIAF/apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="/VR_BIAF/favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="/VR_BIAF/favicon-16x16.png">
-  <link rel="manifest" href="/VR_BIAF/site.webmanifest">
+   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+   <link rel="manifest" href="site.webmanifest">
 
 
   <script src="lib/aframe.min.js"></script>
@@ -259,16 +259,70 @@ document.getElementById("loading").style.display = "block";
       document.getElementById("loading").style.display = "none";
     });
 
-    document.addEventListener("click", (e) => {
-      if (e.target.tagName !== "BUTTON" && !e.target.tagName.startsWith("H")) {
+    // Track mouse/touch movement to distinguish clicks from drags
+    let pointerDownPos = { x: 0, y: 0 };
+    let isDragging = false;
+    let isPointerDown = false;
+
+    document.addEventListener("mousedown", (e) => {
+      pointerDownPos = { x: e.clientX, y: e.clientY };
+      isDragging = false;
+      isPointerDown = true;
+    });
+
+    document.addEventListener("touchstart", (e) => {
+      const touch = e.touches[0];
+      pointerDownPos = { x: touch.clientX, y: touch.clientY };
+      isDragging = false;
+      isPointerDown = true;
+    });
+
+    document.addEventListener("mousemove", (e) => {
+      if (!isPointerDown) return;
+      const dx = Math.abs(e.clientX - pointerDownPos.x);
+      const dy = Math.abs(e.clientY - pointerDownPos.y);
+      if (dx > 5 || dy > 5) isDragging = true;
+    });
+
+    document.addEventListener("touchmove", (e) => {
+      if (!isPointerDown) return;
+      const touch = e.touches[0];
+      const dx = Math.abs(touch.clientX - pointerDownPos.x);
+      const dy = Math.abs(touch.clientY - pointerDownPos.y);
+      if (dx > 5 || dy > 5) isDragging = true;
+    });
+
+    document.addEventListener("mouseup", (e) => {
+      isPointerDown = false;
+      if (!isDragging && e.button === 0) { // Left click only, not dragging
         showMenuTemporarily();
       }
     });
 
+    document.addEventListener("touchend", (e) => {
+      isPointerDown = false;
+      if (!isDragging) {
+        showMenuTemporarily();
+      }
+    });
+
+    // Keyboard shortcuts: Escape, M key
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
         showMenu();
+      } else if (e.key.toLowerCase() === "m") {
+        showMenuTemporarily();
       }
+    });
+
+    // VR Controller buttons (Quest/VR controllers)
+    document.querySelector("a-scene").addEventListener("controllerconnected", (e) => {
+      const controller = e.detail.component.el;
+      controller.addEventListener('triggerdown', () => showMenuTemporarily());
+      controller.addEventListener('gripdown', () => showMenuTemporarily());
+      // For Touch controllers: abutton and bbutton
+      controller.addEventListener('abuttondown', () => showMenuTemporarily());
+      controller.addEventListener('bbuttondown', () => showMenuTemporarily());
     });
 
     document.querySelector("a-scene").addEventListener("loaded", () => {
