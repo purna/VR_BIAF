@@ -85,11 +85,11 @@
       border-radius: 5px;
       transition: opacity 0.5s;
     }
-    #hint.hidden { opacity: 0; }
+    #hint.hidden { opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
-  <video id="video-player" loop="false" crossorigin="anonymous" style="display:none"></video>
+  <video id="video-player" crossorigin="anonymous" playsinline style="display:none"></video>
   
   <div id="loading">
     Loading...
@@ -118,7 +118,7 @@
     <button onclick="stopVideo()" style="background: #555; margin-top: 10px;">■ STOP</button>
   </div>
 
-  <div id="hint">Click a video button to start playing</div>
+  <div id="hint">Select a video to begin</div>
 
   <a-scene vr-mode-ui="enabled: true">
     <a-entity id="video-screen" 
@@ -181,14 +181,14 @@
 
     function playVideo(index) {
       const videoData = videos[index];
-      const videoSrc = videoData.src;
-      
+
       document.getElementById("loading").style.display = "block";
       document.getElementById("progress-fill").style.width = "0%";
 
-      videoEl.src = videoSrc;
+      // Stop any current playback cleanly before switching
+      videoEl.pause();
+      videoEl.src = videoData.src;
       currentVideo = index;
-      isPlaying = true;
 
       if (videoData.is360) {
         screen.setAttribute("visible", "false");
@@ -198,15 +198,19 @@
         sphere.setAttribute("visible", "false");
       }
 
-      videoEl.load();
+      // play() implicitly loads; calling load() separately is redundant
       videoEl.play().then(() => {
+        isPlaying = true;  // only mark playing once the browser confirms it
         document.getElementById("loading").style.display = "none";
         hideMenu();
+        hint.textContent = "Tap / press a button to show menu";
         hint.classList.remove("hidden");
         setTimeout(() => hint.classList.add("hidden"), 3000);
       }).catch(err => {
         console.error("Play error:", err);
+        isPlaying = false;
         document.getElementById("loading").style.display = "none";
+        showMenu();
       });
     }
 
@@ -214,6 +218,7 @@
       videoEl.pause();
       videoEl.currentTime = 0;
       isPlaying = false;
+      clearTimeout(window._menuHideTimer);
       showMenu();
       hint.classList.add("hidden");
     }
@@ -232,6 +237,14 @@
       isPlaying = false;
       showMenu();
       hint.classList.add("hidden");
+    });
+
+    // Surface load errors — without this the spinner hangs forever on a bad file
+    videoEl.addEventListener("error", () => {
+      isPlaying = false;
+      document.getElementById("loading").style.display = "none";
+      showMenu();
+      console.error("Video error:", videoEl.error);
     });
 
     videoEl.addEventListener("loadeddata", () => {
@@ -256,6 +269,15 @@
 
     videoEl.addEventListener("canplay", () => {
       document.getElementById("loading").style.display = "none";
+    });
+
+    // ── VISIBILITY: pause when user switches away, resume on return ──────────
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) {
+        if (isPlaying) videoEl.pause();
+      } else {
+        if (isPlaying) videoEl.play().catch(() => {});
+      }
     });
 
     // ── MOUSE / TOUCH: distinguish clicks from drags ──────────────────────────
