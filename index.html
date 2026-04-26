@@ -2,17 +2,16 @@
 <html>
 <head>
   <meta charset="utf-8">
-   <title>Cities of Ladies</title>
-   <meta name="description" content="VR Video Player for Cities of Ladies">
+  <title>Cities of Ladies</title>
+  <meta name="description" content="VR Video Player for Cities of Ladies">
 
-   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-   <link rel="manifest" href="site.webmanifest">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="manifest" href="site.webmanifest">
 
   <script src="lib/aframe.min.js"></script>
   <link rel="stylesheet" href="lib/fonts.css">
-  <script src="lib/aframe-event-set-component.min.js"></script>
   <style>
     body { margin: 0; overflow: hidden; }
     #video-menu {
@@ -47,30 +46,6 @@
       text-align: left;
     }
     #video-menu button:hover { background: #666; }
-    #loading {
-      position: fixed;
-      top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      color: white;
-      font-family: Arial;
-      font-size: 24px;
-      z-index: 1000;
-      text-align: center;
-    }
-    #progress-bar {
-      width: 200px;
-      height: 6px;
-      background: #333;
-      border-radius: 3px;
-      margin: 15px auto 0;
-      overflow: hidden;
-    }
-    #progress-fill {
-      height: 100%;
-      background: #e91e63;
-      width: 0%;
-      transition: width 0.2s;
-    }
     #hint {
       position: fixed;
       bottom: 20px;
@@ -89,301 +64,171 @@
   </style>
 </head>
 <body>
-  <div id="loading">
-    Loading...
-    <div id="progress-bar"><div id="progress-fill"></div></div>
-  </div>
-  
+
   <div id="video-menu">
     <h3 onclick="showFolder(0)" id="folder-0" class="active">WE</h3>
     <div id="section-0" class="folder-section active">
-      <button onclick="playVideo(0)">01 - 01 Cities of Ladies (WE)</button>
-      <button onclick="playVideo(1)">02 - 02 Cities of Ladies (WE)</button>
+      <button onclick="playVideo(0)">01 - Cities of Ladies (WE)</button>
+      <button onclick="playVideo(1)">02 - Cities of Ladies (WE)</button>
     </div>
-    
     <h3 onclick="showFolder(1)" id="folder-1">YOU</h3>
     <div id="section-1" class="folder-section">
-      <button onclick="playVideo(2)">01 - 01 Cities of Ladies (YOU)</button>
-      <button onclick="playVideo(3)">02 - 02 Cities of Ladies (YOU)</button>
+      <button onclick="playVideo(2)">01 - Cities of Ladies (YOU)</button>
+      <button onclick="playVideo(3)">02 - Cities of Ladies (YOU)</button>
     </div>
-    
     <h3 onclick="showFolder(2)" id="folder-2">I</h3>
     <div id="section-2" class="folder-section">
-      <button onclick="playVideo(4)">01 - 01 Cities of Ladies (I)</button>
-      <button onclick="playVideo(5)">02 - 02 Cities of Ladies (I)</button>
+      <button onclick="playVideo(4)">01 - Cities of Ladies (I)</button>
+      <button onclick="playVideo(5)">02 - Cities of Ladies (I)</button>
     </div>
-    
-    <button onclick="stopVideo()" style="background: #555; margin-top: 10px;">■ STOP</button>
+    <button onclick="stopVideo()" style="background:#555; margin-top:10px;">&#9632; STOP</button>
   </div>
 
   <div id="hint">Select a video to begin</div>
 
-    <a-scene vr-mode-ui="enabled: true" renderer="colorManagement: true; sortObjects: true;" webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking, layers;">
+  <a-scene vr-mode-ui="enabled: true"
+           renderer="colorManagement: true"
+           webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking, layers">
 
-      <a-assets>
-        <video id="video-player" crossorigin="anonymous" playsinline preload="none"></video>
-      </a-assets>
+    <a-assets>
+      <video id="vid"
+             crossorigin="anonymous"
+             playsinline
+             preload="none">
+      </video>
+    </a-assets>
 
-      <a-entity id="video-screen"
-                geometry="primitive: plane; width: 16; height: 9"
-                material="shader: flat; color: #000"
-                position="0 1.6 -3"
-                rotation="0 0 0">
-      </a-entity>
+    <!-- a-sky is the standard A-Frame primitive for 360 content.
+         It is a sphere with radius 5000, side: back, shader: flat built in.
+         We start with no src and hidden; we assign src only after canplay. -->
+    <a-sky id="sky" src="" visible="false"></a-sky>
 
-      <a-entity id="sphere-screen"
-                geometry="primitive: sphere; radius: 30; segmentsWidth: 64; segmentsHeight: 64"
-                material="shader: flat; color: #000; npot: true"
-                scale="-1 1 1"
-                rotation="0 -90 0"
-                visible="false">
-      </a-entity>
+    <a-camera position="0 1.6 0">
+      <a-cursor color="white"></a-cursor>
+    </a-camera>
 
-      <a-camera position="0 1.6 0">
-        <a-cursor color="white"></a-cursor>
-      </a-camera>
-
-      <a-entity light="type: ambient; color: #FFF"></a-entity>
-    </a-scene>
+  </a-scene>
 
   <script>
     const videos = [
-      { src: "01 Cities of Ladies (WE)/01 CITY OF LADIES 2 (WE).mp4", is360: true },
-      { src: "01 Cities of Ladies (WE)/02 CITY OF LADIES 2 (WE).mp4", is360: true },
-      { src: "02 Cities of Ladies (YOU)/01 CITY OF LADIES 2 (YOU).mp4", is360: true },
-      { src: "02 Cities of Ladies (YOU)/02 CITY OF LADIES 2 (YOU).mp4", is360: true },
-      { src: "03 Cities of Ladies (I)/01 CITIES OF LADIES 3 (I).mp4", is360: true },
-      { src: "03 Cities of Ladies (I)/02 CITIES OF LADIES 3 (I).mp4", is360: true }
+      "01 Cities of Ladies (WE)/01 CITY OF LADIES 2 (WE).mp4",
+      "01 Cities of Ladies (WE)/02 CITY OF LADIES 2 (WE).mp4",
+      "02 Cities of Ladies (YOU)/01 CITY OF LADIES 2 (YOU).mp4",
+      "02 Cities of Ladies (YOU)/02 CITY OF LADIES 2 (YOU).mp4",
+      "03 Cities of Ladies (I)/01 CITIES OF LADIES 3 (I).mp4",
+      "03 Cities of Ladies (I)/02 CITIES OF LADIES 3 (I).mp4"
     ];
 
-    let currentVideo = null;
+    const vidEl   = document.getElementById("vid");
+    const sky     = document.getElementById("sky");
+    const menu    = document.getElementById("video-menu");
+    const hint    = document.getElementById("hint");
     let isPlaying = false;
-    const videoEl = document.getElementById("video-player");
-    const screen = document.getElementById("video-screen");
-    const sphere = document.getElementById("sphere-screen");
-    const menu = document.getElementById("video-menu");
-    const hint = document.getElementById("hint");
 
-    function showFolder(index) {
-      for (let i = 0; i < 3; i++) {
-        document.getElementById("folder-" + i).classList.remove("active");
-        document.getElementById("section-" + i).classList.remove("active");
+    // ── folder accordion ──────────────────────────────────────────────────────
+    function showFolder(i) {
+      for (let j = 0; j < 3; j++) {
+        document.getElementById("folder-" + j).classList.remove("active");
+        document.getElementById("section-" + j).classList.remove("active");
       }
-      document.getElementById("folder-" + index).classList.add("active");
-      document.getElementById("section-" + index).classList.add("active");
+      document.getElementById("folder-" + i).classList.add("active");
+      document.getElementById("section-" + i).classList.add("active");
     }
 
-    function showMenu() {
-      menu.classList.remove("hidden");
-      hint.classList.add("hidden");
+    function showMenu() { menu.classList.remove("hidden"); }
+    function hideMenu() { menu.classList.add("hidden"); }
+
+    // ── play ──────────────────────────────────────────────────────────────────
+    function playVideo(index) {
+      // Hide sky and clear src so no stale texture attempt happens
+      sky.setAttribute("visible", "false");
+      sky.removeAttribute("src");
+
+      vidEl.pause();
+      vidEl.src = videos[index];
+      vidEl.load();
+
+      // Wait for real frame data before assigning to sky
+      vidEl.addEventListener("canplay", function onReady() {
+        vidEl.removeEventListener("canplay", onReady);
+
+        // Point the sky at the video element by its asset ID
+        sky.setAttribute("src", "#vid");
+        sky.setAttribute("material", "shader: flat; src: #vid; repeat: 1 1; npot: true");
+        sky.setAttribute("visible", "true");
+
+        vidEl.play().then(() => {
+          isPlaying = true;
+          hideMenu();
+          hint.textContent = "Tap or press a button to show menu";
+          hint.classList.remove("hidden");
+          setTimeout(() => hint.classList.add("hidden"), 3000);
+
+          // Auto-enter VR
+          const scene = document.querySelector("a-scene");
+          if (scene && scene.enterVR) {
+            setTimeout(() => scene.enterVR(), 500);
+          }
+        }).catch(err => {
+          console.error("Play error:", err);
+          isPlaying = false;
+          showMenu();
+        });
+      });
     }
 
-     function hideMenu() {
-       menu.classList.add("hidden");
-     }
-
-     function bindTexture(mesh) {
-       const THREE = AFRAME.THREE;
-       const texture = new THREE.VideoTexture(videoEl);
-       texture.minFilter = THREE.LinearFilter;
-       texture.magFilter = THREE.LinearFilter;
-       texture.format = THREE.RGBAFormat;
-       const mat = mesh.getObject3D("mesh").material;
-       mat.map = texture;
-       mat.needsUpdate = true;
-     }
-
-     function playVideo(index) {
-       const videoData = videos[index];
-
-       document.getElementById("loading").style.display = "block";
-       document.getElementById("progress-fill").style.width = "0%";
-
-       videoEl.pause();
-       videoEl.src = videoData.src;
-       videoEl.load();
-       currentVideo = index;
-
-       if (videoData.is360) {
-         screen.setAttribute("visible", "false");
-         sphere.setAttribute("visible", "true");
-       } else {
-         screen.setAttribute("visible", "true");
-         sphere.setAttribute("visible", "false");
-       }
-
-       videoEl.addEventListener("canplay", function onCanPlay() {
-         videoEl.removeEventListener("canplay", onCanPlay);
-         bindTexture(videoData.is360 ? sphere : screen);
-       });
-
-       videoEl.play().then(() => {
-         isPlaying = true;
-         document.getElementById("loading").style.display = "none";
-         hideMenu();
-         hint.textContent = "Tap / press a button to show menu";
-         hint.classList.remove("hidden");
-         setTimeout(() => hint.classList.add("hidden"), 3000);
-
-         if (videoData.is360) {
-           setTimeout(() => {
-             const scene = document.querySelector("a-scene");
-             if (scene && scene.enterVR) scene.enterVR();
-           }, 500);
-         }
-       }).catch(err => {
-         console.error("Play error:", err);
-         isPlaying = false;
-         document.getElementById("loading").style.display = "none";
-         showMenu();
-       });
-     }
-
-     function stopVideo() {
-      videoEl.pause();
-      videoEl.currentTime = 0;
+    // ── stop ──────────────────────────────────────────────────────────────────
+    function stopVideo() {
+      vidEl.pause();
+      vidEl.src = "";
+      sky.setAttribute("visible", "false");
+      sky.removeAttribute("src");
       isPlaying = false;
       clearTimeout(window._menuHideTimer);
       showMenu();
       hint.classList.add("hidden");
     }
 
-    function showMenuTemporarily() {
-      showMenu();
-      if (isPlaying) {
-        clearTimeout(window._menuHideTimer);
-        window._menuHideTimer = setTimeout(() => {
-          if (isPlaying) hideMenu();
-        }, 5000);
-      }
-    }
-
-    videoEl.addEventListener("ended", () => {
+    // ── events ────────────────────────────────────────────────────────────────
+    vidEl.addEventListener("ended", () => {
       isPlaying = false;
       showMenu();
       hint.classList.add("hidden");
     });
 
-    // Surface load errors — without this the spinner hangs forever on a bad file
-    videoEl.addEventListener("error", () => {
+    vidEl.addEventListener("error", () => {
       isPlaying = false;
-      document.getElementById("loading").style.display = "none";
       showMenu();
-      console.error("Video error:", videoEl.error);
+      console.error("Video error:", vidEl.error);
     });
 
-    videoEl.addEventListener("loadeddata", () => {
-      document.getElementById("loading").style.display = "none";
-    });
-
-    videoEl.addEventListener("progress", () => {
-      if (videoEl.buffered.length > 0) {
-        const bufferedEnd = videoEl.buffered.end(videoEl.buffered.length - 1);
-        const duration = videoEl.duration;
-        if (duration > 0) {
-          const percent = (bufferedEnd / duration) * 100;
-          document.getElementById("progress-fill").style.width = percent + "%";
-        }
+    // ── show menu on interaction ──────────────────────────────────────────────
+    function showMenuTemporarily() {
+      showMenu();
+      if (isPlaying) {
+        clearTimeout(window._menuHideTimer);
+        window._menuHideTimer = setTimeout(() => { if (isPlaying) hideMenu(); }, 5000);
       }
-    });
-
-    videoEl.addEventListener("waiting", () => {
-      document.getElementById("loading").style.display = "block";
-      document.getElementById("progress-fill").style.width = "0%";
-    });
-
-    videoEl.addEventListener("canplay", () => {
-      document.getElementById("loading").style.display = "none";
-    });
-
-    // ── VISIBILITY: pause when user switches away, resume on return ──────────
-    document.addEventListener("visibilitychange", () => {
-      if (document.hidden) {
-        if (isPlaying) videoEl.pause();
-      } else {
-        if (isPlaying) videoEl.play().catch(() => {});
-      }
-    });
-
-    // ── MOUSE / TOUCH: distinguish clicks from drags ──────────────────────────
-    let pointerDownPos = { x: 0, y: 0 };
-    let isDragging = false;
-    let isPointerDown = false;
-
-    document.addEventListener("mousedown", (e) => {
-      pointerDownPos = { x: e.clientX, y: e.clientY };
-      isDragging = false;
-      isPointerDown = true;
-    });
-
-    document.addEventListener("touchstart", (e) => {
-      const touch = e.touches[0];
-      pointerDownPos = { x: touch.clientX, y: touch.clientY };
-      isDragging = false;
-      isPointerDown = true;
-    });
-
-    document.addEventListener("mousemove", (e) => {
-      if (!isPointerDown) return;
-      const dx = Math.abs(e.clientX - pointerDownPos.x);
-      const dy = Math.abs(e.clientY - pointerDownPos.y);
-      if (dx > 5 || dy > 5) isDragging = true;
-    });
-
-    document.addEventListener("touchmove", (e) => {
-      if (!isPointerDown) return;
-      const touch = e.touches[0];
-      const dx = Math.abs(touch.clientX - pointerDownPos.x);
-      const dy = Math.abs(touch.clientY - pointerDownPos.y);
-      if (dx > 5 || dy > 5) isDragging = true;
-    });
-
-    document.addEventListener("mouseup", (e) => {
-      isPointerDown = false;
-      if (!isDragging && e.button === 0) {
-        showMenuTemporarily();
-      }
-    });
-
-    document.addEventListener("touchend", () => {
-      isPointerDown = false;
-      if (!isDragging) {
-        showMenuTemporarily();
-      }
-    });
-
-    // ── KEYBOARD: ANY key shows the menu ─────────────────────────────────────
-    document.addEventListener("keydown", () => {
-      showMenuTemporarily();
-    });
-
-    // ── VR CONTROLLERS: A/B (right hand) + X/Y (left hand) ───────────────────
-    // Buttons we care about on Quest / generic VR controllers
-    const VR_BUTTONS = [
-      'abuttondown',   // A – right controller
-      'bbuttondown',   // B – right controller
-      'xbuttondown',   // X – left  controller
-      'ybuttondown',   // Y – left  controller
-      'triggerdown',   // trigger (either hand)
-      'gripdown',      // grip    (either hand)
-      'menudown'       // menu button
-    ];
-
-    function attachVRListeners(controllerEl) {
-      VR_BUTTONS.forEach(event => {
-        controllerEl.addEventListener(event, () => showMenuTemporarily());
-      });
     }
 
-    // Attach to controllers as they connect
-    document.querySelector("a-scene").addEventListener("controllerconnected", (e) => {
-      attachVRListeners(e.detail.component.el);
-    });
+    let pointerDown = null, dragging = false;
+    document.addEventListener("mousedown",  e => { pointerDown = {x: e.clientX, y: e.clientY}; dragging = false; });
+    document.addEventListener("touchstart", e => { const t = e.touches[0]; pointerDown = {x: t.clientX, y: t.clientY}; dragging = false; }, {passive: true});
+    document.addEventListener("mousemove",  e => { if (pointerDown && (Math.abs(e.clientX - pointerDown.x) > 5 || Math.abs(e.clientY - pointerDown.y) > 5)) dragging = true; });
+    document.addEventListener("touchmove",  e => { if (pointerDown) { const t = e.touches[0]; if (Math.abs(t.clientX - pointerDown.x) > 5 || Math.abs(t.clientY - pointerDown.y) > 5) dragging = true; } }, {passive: true});
+    document.addEventListener("mouseup",    e => { if (!dragging && e.button === 0) showMenuTemporarily(); pointerDown = null; });
+    document.addEventListener("touchend",   () => { if (!dragging) showMenuTemporarily(); pointerDown = null; });
+    document.addEventListener("keydown",    () => showMenuTemporarily());
 
-    // Also scan for any controllers already present (belt-and-braces)
-    document.querySelector("a-scene").addEventListener("loaded", () => {
-      document.getElementById("loading").style.display = "none";
-      document.querySelectorAll("[tracked-controls], [oculus-touch-controls], [hand-controls]").forEach(attachVRListeners);
+    // VR controllers
+    const VR_BUTTONS = ["abuttondown","bbuttondown","xbuttondown","ybuttondown","triggerdown","gripdown","menudown"];
+    function attachVR(el) { VR_BUTTONS.forEach(ev => el.addEventListener(ev, showMenuTemporarily)); }
+    document.querySelector("a-scene").addEventListener("controllerconnected", e => attachVR(e.detail.component.el));
+
+    // Tab visibility
+    document.addEventListener("visibilitychange", () => {
+      if (document.hidden) { if (isPlaying) vidEl.pause(); }
+      else { if (isPlaying) vidEl.play().catch(() => {}); }
     });
   </script>
 </body>
