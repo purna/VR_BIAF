@@ -90,22 +90,7 @@
            renderer="colorManagement: true"
            webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking, layers">
 
-    <a-assets>
-      <video id="vid"
-             crossorigin="anonymous"
-             playsinline
-             preload="none">
-      </video>
-    </a-assets>
 
-    <!-- a-sky is the standard A-Frame primitive for 360 content.
-         It is a sphere with radius 5000, side: back, shader: flat built in.
-         We start with no src and hidden; we assign src only after canplay. -->
-    <a-sky id="sky" src="" visible="false"></a-sky>
-
-    <a-camera position="0 1.6 0">
-      <a-cursor color="white"></a-cursor>
-    </a-camera>
 
   </a-scene>
 
