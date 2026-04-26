@@ -123,8 +123,10 @@
       videoTexture = new THREE.VideoTexture(vidEl);
       videoTexture.minFilter = THREE.LinearFilter;
       videoTexture.magFilter = THREE.LinearFilter;
-      videoTexture.format    = THREE.RGBAFormat;
       videoTexture.generateMipmaps = false;
+      if (THREE.SRGBColorSpace !== undefined) {
+        videoTexture.colorSpace = THREE.SRGBColorSpace;
+      }
 
       // Walk the sky entity's Three.js object and set map on every material found
       skyEl.object3D.traverse(function (node) {
