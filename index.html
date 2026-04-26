@@ -126,14 +126,14 @@
 
       <a-entity id="video-screen"
                 geometry="primitive: plane; width: 16; height: 9"
-                material="shader: flat; src: #video-player"
+                material="shader: flat; color: #000"
                 position="0 1.6 -3"
                 rotation="0 0 0">
       </a-entity>
 
       <a-entity id="sphere-screen"
                 geometry="primitive: sphere; radius: 30; segmentsWidth: 64; segmentsHeight: 64"
-                material="shader: flat; src: #video-player; npot: true"
+                material="shader: flat; color: #000; npot: true"
                 scale="-1 1 1"
                 rotation="0 -90 0"
                 visible="false">
@@ -191,18 +191,28 @@
        // Stop any current playback cleanly before switching
        videoEl.pause();
        videoEl.src = videoData.src;
-       videoEl.load(); // needed after src change to re-bind A-Frame texture
+       videoEl.load();
        currentVideo = index;
+
+       // Bind the texture only once the video has actual frame data
+       videoEl.addEventListener("canplay", function onCanPlay() {
+         videoEl.removeEventListener("canplay", onCanPlay);
+         const matString = "shader: flat; src: #video-player; npot: true";
+         if (videoData.is360) {
+           sphere.setAttribute("material", matString);
+           screen.setAttribute("visible", "false");
+           sphere.setAttribute("visible", "true");
+         } else {
+           screen.setAttribute("material", matString);
+           screen.setAttribute("visible", "true");
+           sphere.setAttribute("visible", "false");
+         }
+       });
 
        if (videoData.is360) {
          screen.setAttribute("visible", "false");
-         sphere.setAttribute("visible", "true");
-         // Force A-Frame to re-bind the video texture on the sphere
-         sphere.setAttribute("material", "shader: flat; src: #video-player; npot: true");
        } else {
-         screen.setAttribute("visible", "true");
          sphere.setAttribute("visible", "false");
-         screen.setAttribute("material", "shader: flat; src: #video-player");
        }
 
        videoEl.play().then(() => {
