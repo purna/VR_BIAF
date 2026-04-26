@@ -54,11 +54,6 @@
 </head>
 <body>
 
-  <!-- Plain <video> element — kept OUTSIDE a-assets deliberately so
-       A-Frame never tries to pre-process it as an asset texture. -->
-  <video id="vid" crossorigin="anonymous" playsinline
-         style="display:none" preload="none"></video>
-
   <div id="video-menu">
     <h3 onclick="showFolder(0)" id="folder-0" class="active">WE</h3>
     <div id="section-0" class="folder-section active">
@@ -84,8 +79,19 @@
            renderer="colorManagement: true"
            webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking, layers">
 
-    <!-- a-sky with no src — we'll inject the Three.js VideoTexture directly -->
-    <a-sky id="sky" color="#000"></a-sky>
+    <a-assets>
+      <!-- Single video element. src is swapped by JS before play. -->
+      <video id="vid"
+             src=""
+             preload="none"
+             crossorigin="anonymous"
+             playsinline
+             webkit-playsinline>
+      </video>
+    </a-assets>
+
+    <!-- a-sky references the asset by ID — exactly as the official A-Frame example does -->
+    <a-sky id="sky" src="#vid" visible="false"></a-sky>
 
     <a-camera position="0 1.6 0">
       <a-cursor color="white"></a-cursor>
@@ -103,42 +109,12 @@
       "03 Cities of Ladies (I)/02 CITIES OF LADIES 3 (I).mp4"
     ];
 
-    const vidEl   = document.getElementById("vid");
-    const skyEl   = document.getElementById("sky");
-    const menu    = document.getElementById("video-menu");
-    const hint    = document.getElementById("hint");
+    const vidEl = document.getElementById("vid");
+    const skyEl = document.getElementById("sky");
+    const menu  = document.getElementById("video-menu");
+    const hint  = document.getElementById("hint");
     let isPlaying = false;
-    let videoTexture = null;
 
-    // ── inject VideoTexture straight into Three.js mesh ───────────────────────
-    function applyVideoTexture() {
-      const THREE = AFRAME.THREE;
-
-      // Dispose previous texture to free GPU memory
-      if (videoTexture) {
-        videoTexture.dispose();
-        videoTexture = null;
-      }
-
-      videoTexture = new THREE.VideoTexture(vidEl);
-      videoTexture.minFilter = THREE.LinearFilter;
-      videoTexture.magFilter = THREE.LinearFilter;
-      videoTexture.generateMipmaps = false;
-      if (THREE.SRGBColorSpace !== undefined) {
-        videoTexture.colorSpace = THREE.SRGBColorSpace;
-      }
-
-      // Walk the sky entity's Three.js object and set map on every material found
-      skyEl.object3D.traverse(function (node) {
-        if (node.isMesh) {
-          node.material.map = videoTexture;
-          node.material.color.set(0xffffff); // clear the fallback #000 color
-          node.material.needsUpdate = true;
-        }
-      });
-    }
-
-    // ── folder accordion ──────────────────────────────────────────────────────
     function showFolder(i) {
       for (let j = 0; j < 3; j++) {
         document.getElementById("folder-" + j).classList.remove("active");
@@ -151,65 +127,60 @@
     function showMenu() { menu.classList.remove("hidden"); }
     function hideMenu() { menu.classList.add("hidden"); }
 
-    // ── play ──────────────────────────────────────────────────────────────────
     function playVideo(index) {
+      // Stop current playback
       vidEl.pause();
+
+      // Swap the src on the <video> element directly
       vidEl.src = VIDEOS[index];
       vidEl.load();
 
       vidEl.addEventListener("canplay", function onReady() {
         vidEl.removeEventListener("canplay", onReady);
 
-        // Scene must be loaded before we can touch Three.js objects
-        const scene = document.querySelector("a-scene");
-        function doApply() {
-          applyVideoTexture();
-          vidEl.play().then(() => {
-            isPlaying = true;
-            hideMenu();
-            hint.textContent = "Tap or press a button to show menu";
-            hint.classList.remove("hidden");
-            setTimeout(() => hint.classList.add("hidden"), 3000);
-            setTimeout(() => { if (scene.enterVR) scene.enterVR(); }, 500);
-          }).catch(err => {
-            console.error("Play error:", err);
-            isPlaying = false;
-            showMenu();
-          });
-        }
+        vidEl.play().then(() => {
+          // Now show the sky — A-Frame already has #vid bound to it
+          skyEl.setAttribute("visible", "true");
+          isPlaying = true;
+          hideMenu();
+          hint.textContent = "Tap or press a button to show menu";
+          hint.classList.remove("hidden");
+          setTimeout(() => hint.classList.add("hidden"), 3000);
 
-        if (scene.hasLoaded) {
-          doApply();
-        } else {
-          scene.addEventListener("loaded", doApply, { once: true });
-        }
+          const scene = document.querySelector("a-scene");
+          if (scene && scene.enterVR) setTimeout(() => scene.enterVR(), 500);
+
+        }).catch(err => {
+          console.error("Play error:", err);
+          isPlaying = false;
+          showMenu();
+        });
       });
     }
 
-    // ── stop ──────────────────────────────────────────────────────────────────
     function stopVideo() {
       vidEl.pause();
       vidEl.src = "";
+      skyEl.setAttribute("visible", "false");
       isPlaying = false;
       clearTimeout(window._menuHideTimer);
-      // Reset sky to black
-      skyEl.object3D.traverse(function (node) {
-        if (node.isMesh) {
-          if (videoTexture) { videoTexture.dispose(); videoTexture = null; }
-          node.material.map = null;
-          node.material.color.set(0x000000);
-          node.material.needsUpdate = true;
-        }
-      });
       showMenu();
       hint.classList.add("hidden");
     }
 
-    // ── video events ──────────────────────────────────────────────────────────
-    vidEl.addEventListener("ended", () => { isPlaying = false; showMenu(); hint.classList.add("hidden"); });
-    vidEl.addEventListener("error", () => { isPlaying = false; showMenu(); console.error("Video error:", vidEl.error); });
+    vidEl.addEventListener("ended", () => {
+      isPlaying = false;
+      skyEl.setAttribute("visible", "false");
+      showMenu();
+      hint.classList.add("hidden");
+    });
 
-    // ── show menu on interaction ──────────────────────────────────────────────
+    vidEl.addEventListener("error", () => {
+      isPlaying = false;
+      showMenu();
+      console.error("Video error:", vidEl.error);
+    });
+
     function showMenuTemporarily() {
       showMenu();
       if (isPlaying) {
@@ -227,12 +198,10 @@
     document.addEventListener("touchend",   () => { if (!dragging) showMenuTemporarily(); pointerDown=null; });
     document.addEventListener("keydown",    () => showMenuTemporarily());
 
-    // VR controllers
     const VR_BUTTONS = ["abuttondown","bbuttondown","xbuttondown","ybuttondown","triggerdown","gripdown","menudown"];
     function attachVR(el) { VR_BUTTONS.forEach(ev => el.addEventListener(ev, showMenuTemporarily)); }
     document.querySelector("a-scene").addEventListener("controllerconnected", e => attachVR(e.detail.component.el));
 
-    // Tab visibility
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) { if (isPlaying) vidEl.pause(); }
       else { if (isPlaying) vidEl.play().catch(()=>{}); }
