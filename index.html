@@ -133,7 +133,8 @@
 
       <a-entity id="sphere-screen"
                 geometry="primitive: sphere; radius: 30; segmentsWidth: 64; segmentsHeight: 64"
-                material="shader: flat; src: #video-player; side: back; npot: true"
+                material="shader: flat; src: #video-player; npot: true"
+                scale="-1 1 1"
                 rotation="0 -90 0"
                 visible="false">
       </a-entity>
@@ -197,7 +198,7 @@
          screen.setAttribute("visible", "false");
          sphere.setAttribute("visible", "true");
          // Force A-Frame to re-bind the video texture on the sphere
-         sphere.setAttribute("material", "shader: flat; src: #video-player; side: back; npot: true");
+         sphere.setAttribute("material", "shader: flat; src: #video-player; npot: true");
        } else {
          screen.setAttribute("visible", "true");
          sphere.setAttribute("visible", "false");
