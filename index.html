@@ -89,8 +89,6 @@
   </style>
 </head>
 <body>
-  <video id="video-player" crossorigin="anonymous" playsinline style="display:none"></video>
-  
   <div id="loading">
     Loading...
     <div id="progress-bar"><div id="progress-fill"></div></div>
@@ -120,28 +118,32 @@
 
   <div id="hint">Select a video to begin</div>
 
-  <a-scene vr-mode-ui="enabled: true">
-    <a-entity id="video-screen" 
-              geometry="primitive: plane; width: 16; height: 9" 
-              material="shader: flat; src: #video-player"
-              position="0 1.6 -3"
-              scale="-1 1 1"
-              rotation="0 0 0">
-    </a-entity>
+    <a-scene vr-mode-ui="enabled: true" renderer="colorManagement: true; sortObjects: true;" webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking, layers;">
 
-    <a-entity id="sphere-screen"
-              geometry="primitive: sphere; radius: 30; segmentsWidth: 64; segmentsHeight: 64"
-              material="shader: flat; src: #video-player; side: back; transparent: true; opacity: 1"
-              scale="-1 1 1"
-              visible="false">
-    </a-entity>
+      <a-assets>
+        <video id="video-player" crossorigin="anonymous" playsinline preload="none"></video>
+      </a-assets>
 
-    <a-camera>
-      <a-cursor color="white"></a-cursor>
-    </a-camera>
+      <a-entity id="video-screen"
+                geometry="primitive: plane; width: 16; height: 9"
+                material="shader: flat; src: #video-player"
+                position="0 1.6 -3"
+                rotation="0 0 0">
+      </a-entity>
 
-    <a-entity light="type: ambient; color: #FFF"></a-entity>
-  </a-scene>
+      <a-entity id="sphere-screen"
+                geometry="primitive: sphere; radius: 30; segmentsWidth: 64; segmentsHeight: 64"
+                material="shader: flat; src: #video-player; side: back; npot: true"
+                rotation="0 -90 0"
+                visible="false">
+      </a-entity>
+
+      <a-camera position="0 1.6 0">
+        <a-cursor color="white"></a-cursor>
+      </a-camera>
+
+      <a-entity light="type: ambient; color: #FFF"></a-entity>
+    </a-scene>
 
   <script>
     const videos = [
@@ -175,46 +177,59 @@
       hint.classList.add("hidden");
     }
 
-    function hideMenu() {
-      menu.classList.add("hidden");
-    }
+     function hideMenu() {
+       menu.classList.add("hidden");
+     }
 
-    function playVideo(index) {
-      const videoData = videos[index];
+     function playVideo(index) {
+       const videoData = videos[index];
 
-      document.getElementById("loading").style.display = "block";
-      document.getElementById("progress-fill").style.width = "0%";
+       document.getElementById("loading").style.display = "block";
+       document.getElementById("progress-fill").style.width = "0%";
 
-      // Stop any current playback cleanly before switching
-      videoEl.pause();
-      videoEl.src = videoData.src;
-      currentVideo = index;
+       // Stop any current playback cleanly before switching
+       videoEl.pause();
+       videoEl.src = videoData.src;
+       videoEl.load(); // needed after src change to re-bind A-Frame texture
+       currentVideo = index;
 
-      if (videoData.is360) {
-        screen.setAttribute("visible", "false");
-        sphere.setAttribute("visible", "true");
-      } else {
-        screen.setAttribute("visible", "true");
-        sphere.setAttribute("visible", "false");
-      }
+       if (videoData.is360) {
+         screen.setAttribute("visible", "false");
+         sphere.setAttribute("visible", "true");
+         // Force A-Frame to re-bind the video texture on the sphere
+         sphere.setAttribute("material", "shader: flat; src: #video-player; side: back; npot: true");
+       } else {
+         screen.setAttribute("visible", "true");
+         sphere.setAttribute("visible", "false");
+         screen.setAttribute("material", "shader: flat; src: #video-player");
+       }
 
-      // play() implicitly loads; calling load() separately is redundant
-      videoEl.play().then(() => {
-        isPlaying = true;  // only mark playing once the browser confirms it
-        document.getElementById("loading").style.display = "none";
-        hideMenu();
-        hint.textContent = "Tap / press a button to show menu";
-        hint.classList.remove("hidden");
-        setTimeout(() => hint.classList.add("hidden"), 3000);
-      }).catch(err => {
-        console.error("Play error:", err);
-        isPlaying = false;
-        document.getElementById("loading").style.display = "none";
-        showMenu();
-      });
-    }
+       videoEl.play().then(() => {
+         isPlaying = true;  // only mark playing once the browser confirms it
+         document.getElementById("loading").style.display = "none";
+         hideMenu();
+         hint.textContent = "Tap / press a button to show menu";
+         hint.classList.remove("hidden");
+         setTimeout(() => hint.classList.add("hidden"), 3000);
 
-    function stopVideo() {
+         // Auto-enter VR mode for 360 videos
+         if (videoData.is360) {
+           setTimeout(() => {
+             const scene = document.querySelector("a-scene");
+             if (scene && scene.enterVR) {
+               scene.enterVR();
+             }
+           }, 500);
+         }
+       }).catch(err => {
+         console.error("Play error:", err);
+         isPlaying = false;
+         document.getElementById("loading").style.display = "none";
+         showMenu();
+       });
+     }
+
+     function stopVideo() {
       videoEl.pause();
       videoEl.currentTime = 0;
       isPlaying = false;
