@@ -182,54 +182,53 @@
        menu.classList.add("hidden");
      }
 
+     function bindTexture(mesh) {
+       const THREE = AFRAME.THREE;
+       const texture = new THREE.VideoTexture(videoEl);
+       texture.minFilter = THREE.LinearFilter;
+       texture.magFilter = THREE.LinearFilter;
+       texture.format = THREE.RGBAFormat;
+       const mat = mesh.getObject3D("mesh").material;
+       mat.map = texture;
+       mat.needsUpdate = true;
+     }
+
      function playVideo(index) {
        const videoData = videos[index];
 
        document.getElementById("loading").style.display = "block";
        document.getElementById("progress-fill").style.width = "0%";
 
-       // Stop any current playback cleanly before switching
        videoEl.pause();
        videoEl.src = videoData.src;
        videoEl.load();
        currentVideo = index;
 
-       // Bind the texture only once the video has actual frame data
-       videoEl.addEventListener("canplay", function onCanPlay() {
-         videoEl.removeEventListener("canplay", onCanPlay);
-         const matString = "shader: flat; src: #video-player; npot: true";
-         if (videoData.is360) {
-           sphere.setAttribute("material", matString);
-           screen.setAttribute("visible", "false");
-           sphere.setAttribute("visible", "true");
-         } else {
-           screen.setAttribute("material", matString);
-           screen.setAttribute("visible", "true");
-           sphere.setAttribute("visible", "false");
-         }
-       });
-
        if (videoData.is360) {
          screen.setAttribute("visible", "false");
+         sphere.setAttribute("visible", "true");
        } else {
+         screen.setAttribute("visible", "true");
          sphere.setAttribute("visible", "false");
        }
 
+       videoEl.addEventListener("canplay", function onCanPlay() {
+         videoEl.removeEventListener("canplay", onCanPlay);
+         bindTexture(videoData.is360 ? sphere : screen);
+       });
+
        videoEl.play().then(() => {
-         isPlaying = true;  // only mark playing once the browser confirms it
+         isPlaying = true;
          document.getElementById("loading").style.display = "none";
          hideMenu();
          hint.textContent = "Tap / press a button to show menu";
          hint.classList.remove("hidden");
          setTimeout(() => hint.classList.add("hidden"), 3000);
 
-         // Auto-enter VR mode for 360 videos
          if (videoData.is360) {
            setTimeout(() => {
              const scene = document.querySelector("a-scene");
-             if (scene && scene.enterVR) {
-               scene.enterVR();
-             }
+             if (scene && scene.enterVR) scene.enterVR();
            }, 500);
          }
        }).catch(err => {
