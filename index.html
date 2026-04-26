@@ -16,8 +16,7 @@
     body { margin: 0; overflow: hidden; }
     #video-menu {
       position: fixed;
-      top: 20px;
-      left: 20px;
+      top: 20px; left: 20px;
       z-index: 999;
       background: rgba(0,0,0,0.8);
       padding: 15px;
@@ -33,37 +32,32 @@
     .folder-section { display: none; margin-left: 10px; border-left: 2px solid #e91e63; padding-left: 10px; margin-bottom: 10px; }
     .folder-section.active { display: block; }
     #video-menu button {
-      display: block;
-      width: 100%;
-      padding: 8px;
-      margin: 3px 0;
-      background: #444;
-      border: none;
-      color: white;
-      border-radius: 5px;
-      cursor: pointer;
-      font-size: 13px;
-      text-align: left;
+      display: block; width: 100%;
+      padding: 8px; margin: 3px 0;
+      background: #444; border: none;
+      color: white; border-radius: 5px;
+      cursor: pointer; font-size: 13px; text-align: left;
     }
     #video-menu button:hover { background: #666; }
     #hint {
       position: fixed;
-      bottom: 20px;
-      left: 50%;
+      bottom: 20px; left: 50%;
       transform: translateX(-50%);
-      color: white;
-      font-family: Arial;
-      font-size: 16px;
+      color: white; font-family: Arial; font-size: 16px;
       z-index: 998;
       background: rgba(0,0,0,0.5);
-      padding: 10px 20px;
-      border-radius: 5px;
+      padding: 10px 20px; border-radius: 5px;
       transition: opacity 0.5s;
     }
     #hint.hidden { opacity: 0; pointer-events: none; }
   </style>
 </head>
 <body>
+
+  <!-- Plain <video> element — kept OUTSIDE a-assets deliberately so
+       A-Frame never tries to pre-process it as an asset texture. -->
+  <video id="vid" crossorigin="anonymous" playsinline
+         style="display:none" preload="none"></video>
 
   <div id="video-menu">
     <h3 onclick="showFolder(0)" id="folder-0" class="active">WE</h3>
@@ -81,7 +75,7 @@
       <button onclick="playVideo(4)">01 - Cities of Ladies (I)</button>
       <button onclick="playVideo(5)">02 - Cities of Ladies (I)</button>
     </div>
-    <button onclick="stopVideo()" style="background:#555; margin-top:10px;">&#9632; STOP</button>
+    <button onclick="stopVideo()" style="background:#555;margin-top:10px;">&#9632; STOP</button>
   </div>
 
   <div id="hint">Select a video to begin</div>
@@ -90,12 +84,17 @@
            renderer="colorManagement: true"
            webxr="optionalFeatures: local-floor, bounded-floor, hand-tracking, layers">
 
+    <!-- a-sky with no src — we'll inject the Three.js VideoTexture directly -->
+    <a-sky id="sky" color="#000"></a-sky>
 
+    <a-camera position="0 1.6 0">
+      <a-cursor color="white"></a-cursor>
+    </a-camera>
 
   </a-scene>
 
   <script>
-    const videos = [
+    const VIDEOS = [
       "01 Cities of Ladies (WE)/01 CITY OF LADIES 2 (WE).mp4",
       "01 Cities of Ladies (WE)/02 CITY OF LADIES 2 (WE).mp4",
       "02 Cities of Ladies (YOU)/01 CITY OF LADIES 2 (YOU).mp4",
@@ -105,10 +104,37 @@
     ];
 
     const vidEl   = document.getElementById("vid");
-    const sky     = document.getElementById("sky");
+    const skyEl   = document.getElementById("sky");
     const menu    = document.getElementById("video-menu");
     const hint    = document.getElementById("hint");
     let isPlaying = false;
+    let videoTexture = null;
+
+    // ── inject VideoTexture straight into Three.js mesh ───────────────────────
+    function applyVideoTexture() {
+      const THREE = AFRAME.THREE;
+
+      // Dispose previous texture to free GPU memory
+      if (videoTexture) {
+        videoTexture.dispose();
+        videoTexture = null;
+      }
+
+      videoTexture = new THREE.VideoTexture(vidEl);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+      videoTexture.format    = THREE.RGBFormat;
+      videoTexture.generateMipmaps = false;
+
+      // Walk the sky entity's Three.js object and set map on every material found
+      skyEl.object3D.traverse(function (node) {
+        if (node.isMesh) {
+          node.material.map = videoTexture;
+          node.material.color.set(0xffffff); // clear the fallback #000 color
+          node.material.needsUpdate = true;
+        }
+      });
+    }
 
     // ── folder accordion ──────────────────────────────────────────────────────
     function showFolder(i) {
@@ -125,40 +151,36 @@
 
     // ── play ──────────────────────────────────────────────────────────────────
     function playVideo(index) {
-      // Hide sky and clear src so no stale texture attempt happens
-      sky.setAttribute("visible", "false");
-      sky.removeAttribute("src");
-
       vidEl.pause();
-      vidEl.src = videos[index];
+      vidEl.src = VIDEOS[index];
       vidEl.load();
 
-      // Wait for real frame data before assigning to sky
       vidEl.addEventListener("canplay", function onReady() {
         vidEl.removeEventListener("canplay", onReady);
 
-        // Point the sky at the video element by its asset ID
-        sky.setAttribute("src", "#vid");
-        sky.setAttribute("material", "shader: flat; src: #vid; repeat: 1 1; npot: true");
-        sky.setAttribute("visible", "true");
+        // Scene must be loaded before we can touch Three.js objects
+        const scene = document.querySelector("a-scene");
+        function doApply() {
+          applyVideoTexture();
+          vidEl.play().then(() => {
+            isPlaying = true;
+            hideMenu();
+            hint.textContent = "Tap or press a button to show menu";
+            hint.classList.remove("hidden");
+            setTimeout(() => hint.classList.add("hidden"), 3000);
+            setTimeout(() => { if (scene.enterVR) scene.enterVR(); }, 500);
+          }).catch(err => {
+            console.error("Play error:", err);
+            isPlaying = false;
+            showMenu();
+          });
+        }
 
-        vidEl.play().then(() => {
-          isPlaying = true;
-          hideMenu();
-          hint.textContent = "Tap or press a button to show menu";
-          hint.classList.remove("hidden");
-          setTimeout(() => hint.classList.add("hidden"), 3000);
-
-          // Auto-enter VR
-          const scene = document.querySelector("a-scene");
-          if (scene && scene.enterVR) {
-            setTimeout(() => scene.enterVR(), 500);
-          }
-        }).catch(err => {
-          console.error("Play error:", err);
-          isPlaying = false;
-          showMenu();
-        });
+        if (scene.hasLoaded) {
+          doApply();
+        } else {
+          scene.addEventListener("loaded", doApply, { once: true });
+        }
       });
     }
 
@@ -166,26 +188,24 @@
     function stopVideo() {
       vidEl.pause();
       vidEl.src = "";
-      sky.setAttribute("visible", "false");
-      sky.removeAttribute("src");
       isPlaying = false;
       clearTimeout(window._menuHideTimer);
+      // Reset sky to black
+      skyEl.object3D.traverse(function (node) {
+        if (node.isMesh) {
+          if (videoTexture) { videoTexture.dispose(); videoTexture = null; }
+          node.material.map = null;
+          node.material.color.set(0x000000);
+          node.material.needsUpdate = true;
+        }
+      });
       showMenu();
       hint.classList.add("hidden");
     }
 
-    // ── events ────────────────────────────────────────────────────────────────
-    vidEl.addEventListener("ended", () => {
-      isPlaying = false;
-      showMenu();
-      hint.classList.add("hidden");
-    });
-
-    vidEl.addEventListener("error", () => {
-      isPlaying = false;
-      showMenu();
-      console.error("Video error:", vidEl.error);
-    });
+    // ── video events ──────────────────────────────────────────────────────────
+    vidEl.addEventListener("ended", () => { isPlaying = false; showMenu(); hint.classList.add("hidden"); });
+    vidEl.addEventListener("error", () => { isPlaying = false; showMenu(); console.error("Video error:", vidEl.error); });
 
     // ── show menu on interaction ──────────────────────────────────────────────
     function showMenuTemporarily() {
@@ -197,12 +217,12 @@
     }
 
     let pointerDown = null, dragging = false;
-    document.addEventListener("mousedown",  e => { pointerDown = {x: e.clientX, y: e.clientY}; dragging = false; });
-    document.addEventListener("touchstart", e => { const t = e.touches[0]; pointerDown = {x: t.clientX, y: t.clientY}; dragging = false; }, {passive: true});
-    document.addEventListener("mousemove",  e => { if (pointerDown && (Math.abs(e.clientX - pointerDown.x) > 5 || Math.abs(e.clientY - pointerDown.y) > 5)) dragging = true; });
-    document.addEventListener("touchmove",  e => { if (pointerDown) { const t = e.touches[0]; if (Math.abs(t.clientX - pointerDown.x) > 5 || Math.abs(t.clientY - pointerDown.y) > 5) dragging = true; } }, {passive: true});
-    document.addEventListener("mouseup",    e => { if (!dragging && e.button === 0) showMenuTemporarily(); pointerDown = null; });
-    document.addEventListener("touchend",   () => { if (!dragging) showMenuTemporarily(); pointerDown = null; });
+    document.addEventListener("mousedown",  e => { pointerDown = {x:e.clientX, y:e.clientY}; dragging = false; });
+    document.addEventListener("touchstart", e => { const t=e.touches[0]; pointerDown={x:t.clientX,y:t.clientY}; dragging=false; }, {passive:true});
+    document.addEventListener("mousemove",  e => { if (pointerDown && (Math.abs(e.clientX-pointerDown.x)>5||Math.abs(e.clientY-pointerDown.y)>5)) dragging=true; });
+    document.addEventListener("touchmove",  e => { if (pointerDown){const t=e.touches[0];if(Math.abs(t.clientX-pointerDown.x)>5||Math.abs(t.clientY-pointerDown.y)>5)dragging=true;}},{passive:true});
+    document.addEventListener("mouseup",    e => { if (!dragging && e.button===0) showMenuTemporarily(); pointerDown=null; });
+    document.addEventListener("touchend",   () => { if (!dragging) showMenuTemporarily(); pointerDown=null; });
     document.addEventListener("keydown",    () => showMenuTemporarily());
 
     // VR controllers
@@ -213,7 +233,7 @@
     // Tab visibility
     document.addEventListener("visibilitychange", () => {
       if (document.hidden) { if (isPlaying) vidEl.pause(); }
-      else { if (isPlaying) vidEl.play().catch(() => {}); }
+      else { if (isPlaying) vidEl.play().catch(()=>{}); }
     });
   </script>
 </body>
